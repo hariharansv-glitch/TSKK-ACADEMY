@@ -14,6 +14,9 @@ import type { AuthenticatedRequest } from '@common/types/authenticated-request';
 import type { EnvVars } from '@config/env.validation';
 import type { GradeBeltExamInput, ListBeltExamsQuery, ScheduleBeltExamInput } from './dto/belt.dto';
 
+// Schema splits BLACK into BLACK_1..BLACK_5 (dan ranks). Progression is
+// strictly ordinal, so listing them all lets a student climb through the
+// dan ladder over time.
 const BELT_ORDER: BeltLevel[] = [
   BeltLevel.WHITE,
   BeltLevel.YELLOW,
@@ -23,7 +26,11 @@ const BELT_ORDER: BeltLevel[] = [
   BeltLevel.PURPLE,
   BeltLevel.BROWN,
   BeltLevel.RED,
-  BeltLevel.BLACK,
+  BeltLevel.BLACK_1,
+  BeltLevel.BLACK_2,
+  BeltLevel.BLACK_3,
+  BeltLevel.BLACK_4,
+  BeltLevel.BLACK_5,
 ];
 
 @Injectable()
@@ -75,7 +82,7 @@ export class BeltsService {
       include: { student: true },
     });
     if (!before) throw new NotFoundException('Belt exam not found');
-    if (before.result === ExamResult.PASSED || before.result === ExamResult.FAILED) {
+    if (before.result === ExamResult.PASS || before.result === ExamResult.FAIL) {
       throw new BadRequestException('Belt exam has already been graded');
     }
 
@@ -97,26 +104,30 @@ export class BeltsService {
         include: { student: true, evaluator: true },
       });
 
-      if (input.result === ExamResult.PASSED) {
+      if (input.result === ExamResult.PASS) {
         await tx.student.update({
           where: { id: before.studentId },
-          data: { currentBelt: before.toBelt, lastBeltDate: new Date() },
+          // Schema field is `currentBeltSince` (not `lastBeltDate`).
+          data: { currentBelt: before.toBelt, currentBeltSince: new Date() },
         });
         await tx.studentHistory.create({
           data: {
             studentId: before.studentId,
-            type: 'BELT_PROMOTION',
+            // Schema requires academyId and uses `eventType` / `data` / `createdBy`
+            // instead of the earlier `type` / `metadata` / `createdById` shape.
+            academyId,
+            eventType: 'BELT_PROMOTION',
             title: `Promoted to ${before.toBelt} belt`,
             description: `Passed belt exam #${examId}`,
-            metadata: { fromBelt: before.fromBelt, toBelt: before.toBelt, examId },
-            createdById: req.user?.id,
+            data: { fromBelt: before.fromBelt, toBelt: before.toBelt, examId },
+            createdBy: req.user?.id,
           },
         });
       }
       return updated;
     });
 
-    if (input.result === ExamResult.PASSED && (input.issueCertificate ?? true)) {
+    if (input.result === ExamResult.PASS && (input.issueCertificate ?? true)) {
       try {
         const cert = await this.certificates.issueForBeltExam(academyId, graded.id, req);
         await this.prisma.beltExam.update({

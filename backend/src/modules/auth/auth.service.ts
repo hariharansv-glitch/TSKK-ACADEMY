@@ -32,7 +32,9 @@ interface AuthContext {
   userAgent?: string | null;
 }
 
-interface AuthResult {
+// Exported so downstream .d.ts emission for AuthController can reference
+// this shape without triggering TS4053 (`cannot be named`).
+export interface AuthResult {
   user: AuthenticatedUser & {
     firstName: string;
     lastName: string;

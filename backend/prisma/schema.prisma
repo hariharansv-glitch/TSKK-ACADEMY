@@ -260,6 +260,7 @@ enum AuditAction {
   IMPORT
   PAYMENT
   REFUND
+  NOTIFY
 }
 
 enum ClassSchedulePattern {
@@ -287,10 +288,12 @@ model Academy {
   id            String            @id @default(cuid())
   slug          String            @unique
   name          String
+  tagline       String?
   discipline    AcademyDiscipline @default(SILAMBAM)
   status        AcademyStatus     @default(TRIAL)
   logoUrl       String?
   primaryColor  String?           @default("#B91C1C")
+  secondaryColor String?          @default("#F59E0B")
   contactEmail  String
   contactPhone  String
   addressLine1  String
@@ -417,6 +420,7 @@ model User {
   emailVerifications EmailVerification[]
   auditLogs          AuditLog[]
   pushSubscriptions  PushSubscription[]
+  notifications      Notification[]
   createdInvoices    FeeInvoice[]         @relation("InvoiceCreatedBy")
   collectedPayments  Payment[]            @relation("PaymentCollectedBy")
   markedAttendances  Attendance[]         @relation("AttendanceMarkedBy")
@@ -1285,6 +1289,7 @@ model Notification {
   updatedAt  DateTime             @updatedAt
 
   academy Academy? @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([academyId, status])

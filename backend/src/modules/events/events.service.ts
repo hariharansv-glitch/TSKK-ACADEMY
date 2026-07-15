@@ -76,8 +76,15 @@ export class EventsService {
           }
         : {}),
     };
-    if (![UserRole.SUPER_ADMIN, UserRole.ACADEMY_ADMIN, UserRole.INSTRUCTOR, UserRole.RECEPTIONIST].includes(actor.role)) {
-      where.status = { in: [EventStatus.PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED] };
+    const staffRoles: UserRole[] = [
+      UserRole.SUPER_ADMIN,
+      UserRole.ACADEMY_ADMIN,
+      UserRole.INSTRUCTOR,
+      UserRole.RECEPTIONIST,
+    ];
+    if (!staffRoles.includes(actor.role)) {
+      // Schema uses ONGOING (not LIVE) for events that are currently running.
+      where.status = { in: [EventStatus.PUBLISHED, EventStatus.ONGOING, EventStatus.COMPLETED] };
     }
     const [total, rows] = await Promise.all([
       this.prisma.event.count({ where }),
@@ -153,7 +160,7 @@ export class EventsService {
   async register(academyId: string, eventId: string, studentId: string, actor: AuthenticatedUser, req: AuthenticatedRequest) {
     const event = await this.prisma.event.findFirst({ where: { id: eventId, academyId } });
     if (!event) throw new NotFoundException('Event not found');
-    if (event.status !== EventStatus.PUBLISHED && event.status !== EventStatus.LIVE) {
+    if (event.status !== EventStatus.PUBLISHED && event.status !== EventStatus.ONGOING) {
       throw new BadRequestException('Event is not open for registration');
     }
     const now = new Date();
@@ -235,7 +242,13 @@ export class EventsService {
   }
 
   private async assertStudentAccess(academyId: string, actor: AuthenticatedUser, studentId: string): Promise<void> {
-    if ([UserRole.SUPER_ADMIN, UserRole.ACADEMY_ADMIN, UserRole.INSTRUCTOR, UserRole.RECEPTIONIST].includes(actor.role)) return;
+    const staffRoles: UserRole[] = [
+      UserRole.SUPER_ADMIN,
+      UserRole.ACADEMY_ADMIN,
+      UserRole.INSTRUCTOR,
+      UserRole.RECEPTIONIST,
+    ];
+    if (staffRoles.includes(actor.role)) return;
     if (actor.role === UserRole.STUDENT) {
       const me = await this.prisma.student.findFirst({ where: { userId: actor.id, academyId } });
       if (me?.id !== studentId) throw new ForbiddenException('You may only register yourself for events');

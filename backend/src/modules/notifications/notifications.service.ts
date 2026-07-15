@@ -5,6 +5,7 @@ import {
   NotificationStatus,
   Prisma,
   UserRole,
+  UserStatus,
 } from '@prisma/client';
 import { PrismaService } from '@database/prisma.service';
 import { MailerService } from '@modules/mailer/mailer.service';
@@ -201,7 +202,8 @@ export class NotificationsService {
         where: {
           ...(academyId ? { academyId } : {}),
           role: { in: input.roles },
-          isActive: true,
+          // User uses a `status` enum (UserStatus), not `isActive`.
+          status: UserStatus.ACTIVE,
           deletedAt: null,
         },
         select: { id: true },
@@ -210,7 +212,7 @@ export class NotificationsService {
     }
     if (ids.size === 0) return [];
     const users = await this.prisma.user.findMany({
-      where: { id: { in: Array.from(ids) }, deletedAt: null, isActive: true },
+      where: { id: { in: Array.from(ids) }, deletedAt: null, status: UserStatus.ACTIVE },
       select: { id: true, email: true, phone: true, role: true },
     });
     return users;

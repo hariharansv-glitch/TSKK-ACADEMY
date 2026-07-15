@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CertificateType, Prisma, UserRole } from '@prisma/client';
+import { CertificateType, ExamResult, Prisma, UserRole } from '@prisma/client';
 import * as path from 'path';
 import { PrismaService } from '@database/prisma.service';
 import { AuditLogService } from '@common/services/audit-log.service';
@@ -75,7 +75,7 @@ export class CertificatesService {
       include: { student: true },
     });
     if (!exam) throw new NotFoundException('Belt exam not found');
-    if (exam.result !== 'PASSED') {
+    if (exam.result !== ExamResult.PASS) {
       throw new BadRequestException('Only passed exams can receive belt promotion certificates');
     }
     return this.issue(

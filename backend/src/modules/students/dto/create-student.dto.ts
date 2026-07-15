@@ -82,8 +82,11 @@ export class CreateStudentDto implements CreateStudentInput {
   @ApiPropertyOptional() bloodGroup?: string;
   @ApiPropertyOptional() branchId?: string;
   @ApiPropertyOptional({ type: String, format: 'date' }) admissionDate?: Date;
-  @ApiPropertyOptional({ enum: StudentStatus }) status?: StudentStatus = StudentStatus.ACTIVE;
-  @ApiPropertyOptional({ enum: BeltLevel }) currentBelt?: BeltLevel = BeltLevel.WHITE;
+  // Fields below have Zod defaults, so the Zod-inferred type makes them
+  // required. Drop the `?` on the class property and rely on the `= default`
+  // initializer, matching the convention used by CreateAcademyDto.
+  @ApiPropertyOptional({ enum: StudentStatus, default: StudentStatus.ACTIVE }) status: StudentStatus = StudentStatus.ACTIVE;
+  @ApiPropertyOptional({ enum: BeltLevel, default: BeltLevel.WHITE }) currentBelt: BeltLevel = BeltLevel.WHITE;
   @ApiPropertyOptional({ type: String, format: 'date' }) currentBeltSince?: Date;
   @ApiPropertyOptional() email?: string;
   @ApiPropertyOptional() phone?: string;
@@ -91,7 +94,7 @@ export class CreateStudentDto implements CreateStudentInput {
   @ApiPropertyOptional() addressLine2?: string;
   @ApiPropertyOptional() city?: string;
   @ApiPropertyOptional() state?: string;
-  @ApiPropertyOptional({ default: 'India' }) country?: string = 'India';
+  @ApiPropertyOptional({ default: 'India' }) country: string = 'India';
   @ApiPropertyOptional() postalCode?: string;
   @ApiPropertyOptional() schoolName?: string;
   @ApiPropertyOptional() schoolClass?: string;

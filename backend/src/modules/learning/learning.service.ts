@@ -30,7 +30,18 @@ const BELT_ORDER: BeltLevel[] = [
   BeltLevel.PURPLE,
   BeltLevel.BROWN,
   BeltLevel.RED,
-  BeltLevel.BLACK,
+  BeltLevel.BLACK_1,
+  BeltLevel.BLACK_2,
+  BeltLevel.BLACK_3,
+  BeltLevel.BLACK_4,
+  BeltLevel.BLACK_5,
+];
+
+const STAFF_ROLES: UserRole[] = [
+  UserRole.SUPER_ADMIN,
+  UserRole.ACADEMY_ADMIN,
+  UserRole.INSTRUCTOR,
+  UserRole.RECEPTIONIST,
 ];
 
 @Injectable()
@@ -84,12 +95,7 @@ export class LearningService {
   }
 
   async listVideos(academyId: string, actor: AuthenticatedUser, query: ListVideosQuery) {
-    const isStaff = [
-      UserRole.SUPER_ADMIN,
-      UserRole.ACADEMY_ADMIN,
-      UserRole.INSTRUCTOR,
-      UserRole.RECEPTIONIST,
-    ].includes(actor.role);
+    const isStaff = STAFF_ROLES.includes(actor.role);
     const actorBelt = await this.currentBeltForActor(academyId, actor);
     const allowedBelts = actorBelt
       ? BELT_ORDER.slice(0, BELT_ORDER.indexOf(actorBelt) + 1)
@@ -176,12 +182,7 @@ export class LearningService {
   }
 
   async listDocuments(academyId: string, actor: AuthenticatedUser, query: ListDocumentsQuery) {
-    const isStaff = [
-      UserRole.SUPER_ADMIN,
-      UserRole.ACADEMY_ADMIN,
-      UserRole.INSTRUCTOR,
-      UserRole.RECEPTIONIST,
-    ].includes(actor.role);
+    const isStaff = STAFF_ROLES.includes(actor.role);
     const actorBelt = await this.currentBeltForActor(academyId, actor);
     const allowedBelts = actorBelt
       ? BELT_ORDER.slice(0, BELT_ORDER.indexOf(actorBelt) + 1)

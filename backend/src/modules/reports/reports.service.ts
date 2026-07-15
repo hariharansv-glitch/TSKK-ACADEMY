@@ -1,5 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AttendanceStatus, FeeStatus, PaymentStatus, Prisma, StudentStatus } from '@prisma/client';
+import {
+  AcademyStatus,
+  AttendanceStatus,
+  ExamResult,
+  FeeStatus,
+  PaymentStatus,
+  StudentStatus,
+} from '@prisma/client';
 import { PrismaService } from '@database/prisma.service';
 import { formatINR } from '@common/utils/money.util';
 
@@ -57,10 +64,10 @@ export class ReportsService {
         where: { academyId, status: { in: [FeeStatus.PENDING, FeeStatus.PARTIAL] }, dueDate: { lt: now } },
       }),
       this.prisma.beltExam.count({
-        where: { academyId, result: 'PENDING', examDate: { gte: now, lte: new Date(now.getTime() + 30 * 86400_000) } },
+        where: { academyId, result: ExamResult.PENDING, examDate: { gte: now, lte: new Date(now.getTime() + 30 * 86400_000) } },
       }),
       this.prisma.beltExam.count({
-        where: { academyId, result: 'PASSED', createdAt: { gte: startOfMonth } },
+        where: { academyId, result: ExamResult.PASS, createdAt: { gte: startOfMonth } },
       }),
     ]);
 
@@ -111,18 +118,21 @@ export class ReportsService {
   // ── Attendance overview ──────────────────────────────────────────────────
   async attendanceOverview(academyId: string, range: Partial<DateRange>) {
     const { from, to } = normalizeRange(range);
+    // Using `_count: true` (scalar) instead of `_count: { _all: true }`
+    // because Prisma 5 types the latter as a union `true | { _all?: number }`,
+    // which the TS compiler refuses to narrow at the access site.
     const grouped = await this.prisma.attendance.groupBy({
       by: ['status'],
       where: { academyId, date: { gte: from, lte: to } },
-      _count: { _all: true },
+      _count: true,
     });
-    const total = grouped.reduce((sum, row) => sum + row._count._all, 0);
+    const total = grouped.reduce((sum, row) => sum + row._count, 0);
     return {
       from,
       to,
       total,
       byStatus: grouped.reduce<Record<string, number>>((acc, r) => {
-        acc[r.status] = r._count._all;
+        acc[r.status] = r._count;
         return acc;
       }, {}),
     };
@@ -134,7 +144,8 @@ export class ReportsService {
     const rows = await this.prisma.student.findMany({
       where: {
         academyId,
-        status: { in: [StudentStatus.LEFT, StudentStatus.SUSPENDED] },
+        // Schema defines DROPPED (not LEFT) for students who quit.
+        status: { in: [StudentStatus.DROPPED, StudentStatus.SUSPENDED] },
         updatedAt: { gte: from, lte: to },
       },
       orderBy: { updatedAt: 'desc' },
@@ -157,23 +168,23 @@ export class ReportsService {
     const beltDistribution = await this.prisma.student.groupBy({
       by: ['currentBelt'],
       where: { academyId, status: StudentStatus.ACTIVE, deletedAt: null },
-      _count: { _all: true },
+      _count: true,
     });
     const passRates = await this.prisma.beltExam.groupBy({
       by: ['toBelt', 'result'],
-      where: { academyId, result: { in: ['PASSED', 'FAILED'] } },
-      _count: { _all: true },
+      where: { academyId, result: { in: [ExamResult.PASS, ExamResult.FAIL] } },
+      _count: true,
     });
     const map = new Map<string, { passed: number; failed: number }>();
     for (const row of passRates) {
       const key = row.toBelt;
       const entry = map.get(key) ?? { passed: 0, failed: 0 };
-      if (row.result === 'PASSED') entry.passed = row._count._all;
-      if (row.result === 'FAILED') entry.failed = row._count._all;
+      if (row.result === ExamResult.PASS) entry.passed = row._count;
+      if (row.result === ExamResult.FAIL) entry.failed = row._count;
       map.set(key, entry);
     }
     return {
-      distribution: beltDistribution.map((b) => ({ belt: b.currentBelt, count: b._count._all })),
+      distribution: beltDistribution.map((b) => ({ belt: b.currentBelt, count: b._count })),
       passRates: Array.from(map.entries()).map(([belt, r]) => ({
         belt,
         passed: r.passed,
@@ -190,14 +201,15 @@ export class ReportsService {
   async platformOverview() {
     const [academies, activeAcademies, students, instructors, revenueTotal, subscriptionsByPlan] = await Promise.all([
       this.prisma.academy.count({ where: { deletedAt: null } }),
-      this.prisma.academy.count({ where: { deletedAt: null, isActive: true } }),
+      // Academy has a `status` enum (AcademyStatus), not an `isActive` bool.
+      this.prisma.academy.count({ where: { deletedAt: null, status: AcademyStatus.ACTIVE } }),
       this.prisma.student.count({ where: { deletedAt: null } }),
       this.prisma.instructor.count({ where: { deletedAt: null } }),
       this.prisma.payment.aggregate({
         where: { status: PaymentStatus.CAPTURED },
         _sum: { amountPaise: true },
       }),
-      this.prisma.subscription.groupBy({ by: ['plan', 'status'], _count: { _all: true } }),
+      this.prisma.subscription.groupBy({ by: ['plan', 'status'], _count: true }),
     ]);
     return {
       academies: { total: academies, active: activeAcademies },
