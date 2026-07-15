@@ -25,6 +25,14 @@ services:
       - /app/node_modules
 
   frontend:
+    # Local-dev API URL: from a developer laptop's browser, the backend
+    # container is reachable at localhost:4000 (thanks to the port mapping
+    # in docker-compose.yml). In CI/prod, `.env` supplies the real VM
+    # host instead. CI intentionally does NOT load this override file.
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_API_PREFIX: /api/v1
+      NEXT_PUBLIC_CERT_VERIFY_BASE: http://localhost:3000/verify
     volumes:
       - ./frontend:/app
       - /app/node_modules

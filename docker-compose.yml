@@ -146,8 +146,12 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # Only baseline env vars go here. NEXT_PUBLIC_API_URL is deliberately
+      # NOT hardcoded — it comes from `.env` (CI/prod → the VM's public
+      # address) or from `docker-compose.override.yml` (local dev → localhost).
+      # Hardcoding it here previously made every browser request try to
+      # reach `localhost:4000` on the end-user's own machine.
       NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:4000
     depends_on:
       - backend
     ports:

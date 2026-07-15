@@ -169,8 +169,14 @@ THROTTLE_TTL=60
 THROTTLE_LIMIT=120
 
 # --- Frontend (Next.js public) ---
-NEXT_PUBLIC_API_URL=http://${VM_HOST}:${BACKEND_PORT}/api/v1
+# IMPORTANT: This is the API HOST only. The frontend's `config.ts` appends
+# `/api/v1` itself via `NEXT_PUBLIC_API_PREFIX` (default "/api/v1"). If you
+# put "/api/v1" here as well, every browser request becomes
+# `http://VM:4000/api/v1/api/v1/...` → 404. Been-there-fixed-that.
+NEXT_PUBLIC_API_URL=http://${VM_HOST}:${BACKEND_PORT}
+NEXT_PUBLIC_API_PREFIX=/api/v1
 NEXT_PUBLIC_APP_NAME=TSKK Academy
+NEXT_PUBLIC_CERT_VERIFY_BASE=http://${VM_HOST}:${FRONTEND_PORT}/verify
 
 # --- Misc ---
 TZ=${TZ}
