@@ -1,0 +1,8 @@
+# Shell scripts must use LF line endings even when checked out on Windows,
+# otherwise Docker refuses to execute them (the shebang is parsed as
+# `#!/bin/sh\r` and returns "no such file or directory"). This attribute
+# is enforced both on commit (via `text eol=lf`) and on checkout.
+*.sh text eol=lf
+
+# Same for anything else we execute directly inside a Linux container.
+Dockerfile text eol=lf

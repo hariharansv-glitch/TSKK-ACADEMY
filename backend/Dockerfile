@@ -37,8 +37,16 @@ FROM base AS development
 ENV NODE_ENV=development
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm prisma generate
+# Normalise CRLF → LF in case the script was authored on Windows, then
+# mark it executable. Prisma generate is done here (dev image), not at
+# runtime, so container starts are fast.
+RUN sed -i 's/\r$//' /app/scripts/docker-entrypoint.sh \
+ && chmod +x /app/scripts/docker-entrypoint.sh \
+ && pnpm prisma generate
 EXPOSE 4000 9229
+# The entrypoint runs `prisma db push` + `prisma db seed` once, then execs
+# the CMD (`pnpm start:dev`) so Nest becomes PID 1.
+ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
 CMD ["pnpm", "start:dev"]
 
 # ── build: compile TS → JS ──────────────────────────────────────────────────
