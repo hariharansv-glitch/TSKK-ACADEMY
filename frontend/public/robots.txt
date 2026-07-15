@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /verify
+Disallow: /dashboard
+Disallow: /parent
+Disallow: /student
+Disallow: /platform

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{certificate.title}}</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Georgia", "Times New Roman", serif;
+    margin: 0;
+    color: #1f2937;
+    background: #fdfbf5;
+  }
+  .frame {
+    width: 297mm;
+    height: 210mm;
+    padding: 22mm 26mm;
+    background:
+      linear-gradient(#fdfbf5, #fdfbf5),
+      linear-gradient(135deg, {{primaryColor}} 0%, {{secondaryColor}} 100%);
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+    border: 12mm solid transparent;
+    position: relative;
+  }
+  .inner-border {
+    position: absolute;
+    inset: 22mm 26mm;
+    border: 2px solid {{primaryColor}};
+    border-radius: 4px;
+    pointer-events: none;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12mm;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 4mm;
+  }
+  .brand img { height: 20mm; }
+  .brand .name { font-size: 20pt; font-weight: 700; color: {{primaryColor}}; letter-spacing: 1px; }
+  .brand .tagline { font-size: 10pt; color: #6b7280; font-style: italic; }
+  .cert-number { text-align: right; font-size: 10pt; color: #6b7280; }
+  .cert-number .label { text-transform: uppercase; letter-spacing: 2px; font-size: 8pt; }
+  .cert-number .value { font-family: monospace; font-size: 12pt; color: #111827; font-weight: 700; margin-top: 2mm; }
+  main { text-align: center; padding: 4mm 10mm; }
+  h1 {
+    font-family: "Georgia", serif;
+    font-size: 42pt;
+    color: {{primaryColor}};
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin: 0 0 3mm;
+    font-weight: 700;
+  }
+  h1::after {
+    display: block;
+    content: "";
+    width: 60mm;
+    height: 3px;
+    background: {{secondaryColor}};
+    margin: 4mm auto;
+  }
+  .subtitle { font-size: 14pt; color: #4b5563; font-style: italic; margin-bottom: 8mm; }
+  .presented { font-size: 12pt; color: #6b7280; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 4mm; }
+  .name {
+    font-size: 36pt;
+    color: #111827;
+    font-weight: 700;
+    border-bottom: 2px solid {{secondaryColor}};
+    padding-bottom: 6mm;
+    margin: 0 auto 6mm;
+    display: inline-block;
+    padding: 0 20mm 4mm;
+  }
+  .description { font-size: 13pt; color: #374151; line-height: 1.5; margin: 0 auto 10mm; max-width: 220mm; }
+  footer {
+    position: absolute;
+    left: 26mm; right: 26mm; bottom: 22mm;
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .signature { text-align: center; }
+  .signature .line { border-top: 1px solid #6b7280; width: 60mm; margin: 0 auto 2mm; }
+  .signature .role { font-size: 10pt; color: #6b7280; text-transform: uppercase; letter-spacing: 2px; }
+  .qr { text-align: center; }
+  .qr img { width: 22mm; height: 22mm; }
+  .qr .code { font-family: monospace; font-size: 8pt; color: #6b7280; margin-top: 1mm; word-break: break-all; max-width: 40mm; margin: 1mm auto 0; }
+  .meta { font-size: 9pt; color: #6b7280; text-align: right; }
+  .meta div { margin-top: 1mm; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="inner-border"></div>
+
+  <div class="header">
+    <div class="brand">
+      {{#if academy.logoUrl}}<img src="{{academy.logoUrl}}" alt="{{academy.name}}" />{{/if}}
+      <div>
+        <div class="name">{{academy.name}}</div>
+        {{#if academy.tagline}}<div class="tagline">{{academy.tagline}}</div>{{/if}}
+      </div>
+    </div>
+    <div class="cert-number">
+      <div class="label">Certificate No.</div>
+      <div class="value">{{certificate.number}}</div>
+    </div>
+  </div>
+
+  <main>
+    <h1>Certificate</h1>
+    <div class="subtitle">of {{certificate.type}}</div>
+    <div class="presented">This certificate is proudly presented to</div>
+    <div class="name">{{student.name}}</div>
+    <div class="description">
+      {{certificate.title}}<br />
+      {{#if certificate.description}}<span>{{certificate.description}}</span>{{/if}}
+    </div>
+  </main>
+
+  <footer>
+    <div class="signature">
+      <div class="line"></div>
+      <div class="role">Founder / Head Coach</div>
+    </div>
+    <div class="qr">
+      <img src="{{qrDataUrl}}" alt="Verify" />
+      <div class="code">Scan to verify · {{certificate.verificationCode}}</div>
+    </div>
+    <div class="meta">
+      <div><strong>Issued:</strong> {{certificate.issuedOn}}</div>
+      {{#if certificate.validUntil}}<div><strong>Valid until:</strong> {{certificate.validUntil}}</div>{{/if}}
+      {{#if student.currentBelt}}<div><strong>Belt:</strong> {{student.currentBelt}}</div>{{/if}}
+    </div>
+  </footer>
+</div>
+</body>
+</html>

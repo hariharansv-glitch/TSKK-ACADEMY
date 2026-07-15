@@ -1,0 +1,11 @@
+<!-- subject: Verify your TSKK Academy account -->
+{{#> _layout title="Verify your account"}}
+  <h2 style="margin:0 0 16px;color:#111827;font-size:22px;">Welcome, {{firstName}}!</h2>
+  <p style="margin:0 0 12px;">Thank you for registering with <strong>{{academyName}}</strong>. To activate your account, please confirm your email address by clicking the button below.</p>
+  <p style="text-align:center;margin:28px 0;">
+    <a href="{{verifyUrl}}" style="display:inline-block;background:#B91C1C;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;">Verify Email Address</a>
+  </p>
+  <p style="margin:0 0 8px;color:#6b7280;font-size:13px;">Or copy and paste this link into your browser:</p>
+  <p style="margin:0 0 16px;word-break:break-all;color:#374151;font-size:13px;"><a href="{{verifyUrl}}" style="color:#B91C1C;">{{verifyUrl}}</a></p>
+  <p style="margin:24px 0 0;color:#6b7280;font-size:13px;">This link will expire in <strong>{{expiresInHours}} hours</strong>. If you did not create an account, please ignore this email.</p>
+{{/_layout}}

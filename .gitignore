@@ -1,0 +1,61 @@
+# ── Dependencies ───────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+
+# ── Build output ───────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# ── Env & secrets ──────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ── Logs ───────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── OS / editors ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.recommended.json
+.idea/
+*.swp
+*.swo
+
+# ── Prisma ─────────────────────────────────────────────────────────────────────
+backend/prisma/migrations/dev.db*
+
+# ── Uploaded / generated media (kept in MinIO) ─────────────────────────────────
+uploads/
+tmp/
+storage/
+
+# ── Docker volumes (bind-mounted in dev) ──────────────────────────────────────
+docker/data/
+
+# ── Test artefacts ─────────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+junit.xml
+playwright-report/
+test-results/

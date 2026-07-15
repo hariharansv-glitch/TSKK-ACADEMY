@@ -1,0 +1,161 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TSKK Academy Platform — Production stack.
+# Deploy behind a public Nginx reverse proxy that terminates TLS.
+# Assumes a `.env.production` file is present with all required secrets.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: tskk-academy-prod
+
+networks:
+  tskk-net:
+    driver: bridge
+  tskk-edge:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  backend-tmp:
+  letsencrypt:
+  nginx-cache:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tskk-postgres
+    restart: always
+    env_file: .env.production
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks: [tskk-net]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  redis:
+    image: redis:7-alpine
+    container_name: tskk-redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [tskk-net]
+
+  minio:
+    image: minio/minio:latest
+    container_name: tskk-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    env_file: .env.production
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    networks: [tskk-net]
+
+  minio-bootstrap:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: .env.production
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/$${MINIO_BUCKET_PHOTOS} &&
+      mc mb --ignore-existing local/$${MINIO_BUCKET_CERTIFICATES} &&
+      mc mb --ignore-existing local/$${MINIO_BUCKET_VIDEOS} &&
+      mc mb --ignore-existing local/$${MINIO_BUCKET_DOCUMENTS} &&
+      mc anonymous set download local/$${MINIO_BUCKET_CERTIFICATES};
+      exit 0
+      "
+    networks: [tskk-net]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: tskk-backend
+    restart: always
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - backend-tmp:/app/tmp
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks: [tskk-net, tskk-edge]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: tskk-frontend
+    restart: always
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks: [tskk-edge]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: tskk-nginx
+    restart: always
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - letsencrypt:/etc/letsencrypt
+      - nginx-cache:/var/cache/nginx
+    networks: [tskk-edge]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }

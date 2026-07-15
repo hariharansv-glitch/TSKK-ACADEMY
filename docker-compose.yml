@@ -1,0 +1,157 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TSKK Academy Platform — Local development stack.
+# For production use `docker-compose.prod.yml`.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: tskk-academy
+
+networks:
+  tskk-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tskk-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [tskk-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: tskk-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [tskk-net]
+
+  minio:
+    image: minio/minio:latest
+    container_name: tskk-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [tskk-net]
+
+  minio-bootstrap:
+    image: minio/mc:latest
+    container_name: tskk-minio-bootstrap
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb --ignore-existing local/$${MINIO_BUCKET_PHOTOS};
+      mc mb --ignore-existing local/$${MINIO_BUCKET_CERTIFICATES};
+      mc mb --ignore-existing local/$${MINIO_BUCKET_VIDEOS};
+      mc mb --ignore-existing local/$${MINIO_BUCKET_DOCUMENTS};
+      mc anonymous set download local/$${MINIO_BUCKET_CERTIFICATES};
+      exit 0;
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_PHOTOS: ${MINIO_BUCKET_PHOTOS}
+      MINIO_BUCKET_CERTIFICATES: ${MINIO_BUCKET_CERTIFICATES}
+      MINIO_BUCKET_VIDEOS: ${MINIO_BUCKET_VIDEOS}
+      MINIO_BUCKET_DOCUMENTS: ${MINIO_BUCKET_DOCUMENTS}
+    networks: [tskk-net]
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: tskk-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks: [tskk-net]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: tskk-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+      - "9229:9229"  # node inspector
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    # command inherited from Dockerfile (development target)
+    networks: [tskk-net]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: tskk-frontend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    # command inherited from Dockerfile (dev target)
+    networks: [tskk-net]
