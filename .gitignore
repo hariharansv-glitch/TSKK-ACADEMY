@@ -48,7 +48,11 @@ backend/prisma/migrations/dev.db*
 # ── Uploaded / generated media (kept in MinIO) ─────────────────────────────────
 uploads/
 tmp/
-storage/
+# `storage/` used to be a catch-all here for runtime buckets on disk, but it
+# also matched the backend's `src/common/storage/` source folder and made
+# git silently ignore StorageModule/StorageService — pin it to the root
+# instead so only a top-level `storage/` runtime dir is ignored.
+/storage/
 
 # ── Docker volumes (bind-mounted in dev) ──────────────────────────────────────
 docker/data/
