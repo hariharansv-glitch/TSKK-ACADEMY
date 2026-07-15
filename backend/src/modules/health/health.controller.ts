@@ -1,10 +1,20 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, VERSION_NEUTRAL } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from '@common/decorators/public.decorator';
 import { PrismaService } from '@database/prisma.service';
 
 @ApiTags('health')
-@Controller({ path: 'health', version: undefined })
+// IMPORTANT: `VERSION_NEUTRAL` (not `undefined`) is required here. With
+// `app.enableVersioning({ type: URI, defaultVersion: '1' })` in main.ts,
+// a controller with `version: undefined` implicitly inherits the default
+// version, which would mount these routes at `/v1/health` and
+// `/v1/health/ready`. That doesn't match what the docker HEALTHCHECK,
+// the Jenkins `Wait for App` stage, and load balancers all expect
+// (unversioned `/health`). `VERSION_NEUTRAL` opts this controller out of
+// versioning entirely so the routes stay at their canonical paths, which
+// is also exactly what main.ts's `setGlobalPrefix({ exclude: [...] })`
+// already assumes.
+@Controller({ path: 'health', version: VERSION_NEUTRAL })
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
