@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Local-development overlay for docker-compose.yml.
+#
+# Docker Compose auto-loads this file whenever you run `docker compose ...`
+# without an explicit `-f`, so on a developer laptop `docker compose up`
+# picks it up and you get hot-reload.
+#
+# CI/Jenkins must NOT load this file — the bind-mount `./backend:/app`
+# refers to a path inside the Jenkins container that doesn't exist on the
+# host Docker daemon (Jenkins runs docker-out-of-docker), which silently
+# mounts an empty directory over /app and crash-loops the backend with
+# `ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND: No package.json ... in "/app"`.
+# The Jenkinsfile pins `COMPOSE_FILE=docker-compose.yml` to opt out of
+# this auto-loading.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  backend:
+    volumes:
+      # Bind the source tree over the image's /app so `pnpm start:dev`
+      # picks up file changes without a rebuild.
+      - ./backend:/app
+      # Anonymous volume to keep the image's /app/node_modules from being
+      # shadowed by the (usually empty) host node_modules folder.
+      - /app/node_modules
+
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next

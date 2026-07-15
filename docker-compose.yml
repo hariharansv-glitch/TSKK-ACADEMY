@@ -107,6 +107,12 @@ services:
       - "8025:8025"
     networks: [tskk-net]
 
+  # Note: the dev-only bind mounts (./backend:/app, ./frontend:/app,
+  # anonymous node_modules volumes) live in docker-compose.override.yml
+  # so they are auto-applied for local dev but NOT for CI/Jenkins. The
+  # override is a no-op if you run this file with an explicit `-f`
+  # (which is what CI does via COMPOSE_FILE).
+
   backend:
     build:
       context: ./backend
@@ -128,9 +134,6 @@ services:
     ports:
       - "4000:4000"
       - "9229:9229"  # node inspector
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
     # command inherited from Dockerfile (development target)
     networks: [tskk-net]
 
@@ -149,9 +152,5 @@ services:
       - backend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     # command inherited from Dockerfile (dev target)
     networks: [tskk-net]

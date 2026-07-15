@@ -56,6 +56,16 @@ pipeline {
         // names (matches `name: tskk-academy` in docker-compose.yml).
         COMPOSE_PROJECT_NAME = 'tskk-academy'
 
+        // Pin the compose file explicitly so Docker Compose does NOT auto-
+        // load docker-compose.override.yml. The override adds bind mounts
+        // (./backend:/app, ./frontend:/app) that are great for local dev
+        // hot-reload but catastrophic in Jenkins-in-Docker: the ./backend
+        // path only exists inside the Jenkins container, and the host
+        // Docker daemon silently mounts an empty directory over /app,
+        // wiping the image and crash-looping the app with
+        // `ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND`.
+        COMPOSE_FILE = 'docker-compose.yml'
+
         // Container names we poll for health (match container_name in compose).
         FRONTEND_CONTAINER = 'tskk-frontend'
         BACKEND_CONTAINER  = 'tskk-backend'
