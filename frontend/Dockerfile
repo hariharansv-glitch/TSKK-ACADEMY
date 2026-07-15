@@ -2,11 +2,15 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 RUN corepack enable
-# Copy the lockfile too when present so `npm ci` gives us a reproducible,
-# faster install. The `package-lock.json*` glob keeps this working even
-# in the unlikely case the lockfile is temporarily missing. The cache
-# mount reuses the npm download cache across builds.
-COPY package.json package-lock.json* ./
+# `.npmrc` carries `legacy-peer-deps=true` — required because next@15.0.0
+# has a peer-dep range that only accepts React 18.2+ or one specific RC of
+# React 19, while this repo uses React 19.0.0 stable. Copy it BEFORE
+# install so `npm ci` honours the setting.
+#
+# The `package-lock.json*` glob keeps the build working even if the
+# lockfile is temporarily missing. The cache mount reuses the npm
+# download cache across builds.
+COPY package.json package-lock.json* .npmrc* ./
 RUN --mount=type=cache,id=npm-cache,target=/root/.npm \
     if [ -f package-lock.json ]; then \
         npm ci --no-audit --no-fund; \
