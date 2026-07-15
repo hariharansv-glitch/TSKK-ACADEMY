@@ -2,8 +2,17 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 RUN corepack enable
-COPY package.json ./
-RUN npm install --no-audit --no-fund
+# Copy the lockfile too when present so `npm ci` gives us a reproducible,
+# faster install. The `package-lock.json*` glob keeps this working even
+# in the unlikely case the lockfile is temporarily missing. The cache
+# mount reuses the npm download cache across builds.
+COPY package.json package-lock.json* ./
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm \
+    if [ -f package-lock.json ]; then \
+        npm ci --no-audit --no-fund; \
+    else \
+        npm install --no-audit --no-fund; \
+    fi
 
 FROM node:20-alpine AS builder
 WORKDIR /app

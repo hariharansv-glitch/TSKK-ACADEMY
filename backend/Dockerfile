@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # ─────────────────────────────────────────────────────────────────────────────
 # TSKK Backend — multi-stage Dockerfile
 # stages: base → deps → development → build → production
@@ -12,12 +13,24 @@ RUN apk add --no-cache libc6-compat openssl chromium ca-certificates \
   && corepack enable && corepack prepare pnpm@9.12.0 --activate
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
 WORKDIR /app
 
 # ── deps: install ALL deps (used by dev & build) ────────────────────────────
+# The `pnpm-lock.yaml*` glob makes the lockfile optional — if it exists we get
+# a reproducible install; if not, pnpm resolves from package.json. The cache
+# mount preserves the pnpm store between builds so we don't re-download all
+# ~900 packages every time (this was the other big time sink in CI).
 FROM base AS deps
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store \
+ && if [ -f pnpm-lock.yaml ]; then \
+        pnpm install --frozen-lockfile --prefer-offline; \
+    else \
+        pnpm install --prefer-offline; \
+    fi
 
 # ── development: hot-reload container used by docker-compose ────────────────
 FROM base AS development

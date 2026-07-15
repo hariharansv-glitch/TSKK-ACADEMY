@@ -174,15 +174,39 @@ EOF
 
         stage('Build & Deploy') {
             steps {
+                // Docker Compose's default "auto" progress renderer uses TTY
+                // cursor codes and buffers heavily. Under Jenkins that means
+                // long stretches (npm/pnpm install, chromium download, Next
+                // build) produce zero log output, which trips JENKINS-48300
+                // ("wrapper script does not seem to be touching the log file")
+                // and Jenkins kills the shell around the 5-min mark.
+                //
+                // Forcing plain progress + BuildKit gives us one line per
+                // step, so the wrapper log is always fresh. We also emit a
+                // heartbeat every 30s as a belt-and-braces guarantee against
+                // any single very long BuildKit step (e.g. base image pull).
                 sh '''
                 set -e
 
+                export DOCKER_BUILDKIT=1
+                export COMPOSE_DOCKER_CLI_BUILD=1
+                export BUILDKIT_PROGRESS=plain
+
                 docker compose down --remove-orphans || true
+
+                # Background heartbeat so Jenkins always sees log activity,
+                # even if a single BuildKit step is silent for minutes.
+                ( while true; do echo "[heartbeat $(date -u +%H:%M:%S)] build in progress..."; sleep 30; done ) &
+                HEARTBEAT_PID=$!
+                trap 'kill $HEARTBEAT_PID 2>/dev/null || true' EXIT
 
                 # Use the build cache for speed. Switch to --no-cache only when
                 # you really need a clean rebuild (e.g. base-image security patch
                 # or a stale pnpm/npm layer).
-                docker compose build
+                docker compose build --progress=plain --pull
+
+                kill $HEARTBEAT_PID 2>/dev/null || true
+                trap - EXIT
 
                 docker compose up -d
 
