@@ -12,7 +12,10 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearchPostgres"]
+  // `fullTextSearch` (preview) unlocks the typed `.search` accessor on
+  // Postgres string fields. The previous value "fullTextSearchPostgres"
+  // was not a real Prisma feature flag and failed schema validation.
+  previewFeatures = ["fullTextSearch"]
 }
 
 datasource db {
