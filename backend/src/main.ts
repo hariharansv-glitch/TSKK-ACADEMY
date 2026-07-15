@@ -1,6 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { Logger, VersioningType } from '@nestjs/common';
+import { Logger, RequestMethod, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import helmet from 'helmet';
@@ -41,8 +41,18 @@ async function bootstrap(): Promise<void> {
 
   // ── Global prefix + versioning ─────────────────────────────────────────────
   const [prefix, versionPart] = env.API_PREFIX.split('/');
+  // NOTE: `RequestMethod.ALL` is deliberately used (never a numeric literal).
+  // The Nest enum values are NOT stable across versions and there was a
+  // long-standing footgun here where `method: 6` was commented as "ALL"
+  // but is actually OPTIONS in @nestjs/common v10 — meaning the exclude
+  // only fired for CORS preflight and every real GET /health still got
+  // the /api prefix (→ 404 for the Docker HEALTHCHECK, load balancer,
+  // and Jenkins Wait-for-App poller). Always use the symbolic enum.
   app.setGlobalPrefix(prefix, {
-    exclude: [{ path: 'health', method: 6 /* ALL */ }, { path: 'health/ready', method: 6 }],
+    exclude: [
+      { path: 'health', method: RequestMethod.ALL },
+      { path: 'health/ready', method: RequestMethod.ALL },
+    ],
   });
   if (versionPart && /^v\d+$/i.test(versionPart)) {
     app.enableVersioning({
